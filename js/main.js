@@ -47,10 +47,14 @@ function main(){
 			if(this.x < -xrange && this.xd < 0){
 				this.xd = 0;
 				this.x = 0;
+				this.ad = 0;
+				this.a = 0.1;
 			}
 			if(this.x > xrange && this.xd > 0){
 				this.xd = 0;
 				this.x = 0;
+				this.ad = 0;
+				this.a = 0.1;
 			}
 		},
 
