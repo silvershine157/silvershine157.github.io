@@ -3,4 +3,34 @@ layout: ie
 title: Cart-Pole Manual Control
 category: ie
 ---
-WIP
+<script src="//cdn.jsdelivr.net/npm/phaser@3.11.0/dist/phaser.js"></script>
+<script>
+var config = {
+    parent: "main-disp",
+    type: Phaser.AUTO,
+    width: 600,
+    height: 400,
+    physics: {
+        default: 'arcade',
+        arcade: {
+            gravity: {y: 1000},
+            debug: false
+        }
+    },
+    scene: {
+        preload: preload,
+        create: create,
+        update: update
+    }
+};
+
+var game = new Phaser.Game(config);
+
+function preload() {}
+
+function create() {}
+
+function update() {}
+
+</script>
+<div id="main-disp"></div>
