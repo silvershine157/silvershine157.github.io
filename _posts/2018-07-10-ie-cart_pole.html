@@ -2,6 +2,7 @@
 layout: ie
 title: Cart-Pole Feedback Control
 category: ie
+main_onload: true
 ---
 <script>
 function main(){
@@ -122,7 +123,7 @@ function main(){
 	raf = window.requestAnimationFrame(draw);
 }
 </script>
-<div onload="main();">
+<div>
 	<canvas id="main-disp" width="700" height="300"></canvas>
 	<p>Put mouse over to apply feedback control (try when the pole is upward!)</p>
 	Control force:
