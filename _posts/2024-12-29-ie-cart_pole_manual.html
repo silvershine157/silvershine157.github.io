@@ -3,34 +3,144 @@ layout: ie
 title: Cart-Pole Manual Control
 category: ie
 ---
-<script src="//cdn.jsdelivr.net/npm/phaser@3.11.0/dist/phaser.js"></script>
+<script src="//cdn.jsdelivr.net/npm/phaser@3.16.2/dist/phaser.js"></script>
 <script>
-var config = {
+
+const config = {
     parent: "main-disp",
     type: Phaser.AUTO,
-    width: 600,
+    width: 800,
     height: 400,
-    physics: {
-        default: 'arcade',
-        arcade: {
-            gravity: {y: 1000},
-            debug: false
-        }
-    },
+    backgroundColor: 0x333333,
     scene: {
-        preload: preload,
-        create: create,
-        update: update
+        preload,
+        create,
+        update
     }
 };
 
-var game = new Phaser.Game(config);
+const game = new Phaser.Game(config);
+
+// Cart-pole state and parameters
+let cart = {
+    x: 0, // Cart position (meters)
+    xdot: 0, // Cart velocity (m/s)
+};
+
+let pole = {
+    a: Math.PI / 6, // Pole angle (radians, 0 is upright)
+    adot: 0, // Pole angular velocity (rad/s)
+};
+
+const params = {
+    g: 9.8, // Gravity (m/s^2)
+    l: 1.0, // Pole length (meters)
+    M: 1.0, // Mass of the cart (kg)
+    m: 0.2, // Mass of the pole (kg)
+    force: 10, // Force applied to the cart (N)
+    dt: 0.016, // Time step (seconds)
+    pole_fr: 0.3,
+    cart_fr: 0.3,
+};
+
+let graphics;
+let cursors;
 
 function preload() {}
 
-function create() {}
+function create() {
+    graphics = this.add.graphics();
+    cursors = this.input.keyboard.createCursorKeys();
+}
 
-function update() {}
+function update() {
+
+    // Clear the graphics
+    graphics.clear();
+
+    // Draw the cart and pole
+    const cartColor = 0x3f72c4;
+    const poleColor = 0xe0ca58;
+    const originColor = 0xeeeeee;
+    const controlColor = 0xe0585c;
+
+    const meter_pixels = 100;
+    const originX = 250;
+    const originY = 250;
+    const cartX = originX + cart.x * meter_pixels;
+    const cartY = originY;
+    const poleX = cartX - Math.sin(pole.a) * params.l * meter_pixels;
+    const poleY = cartY - Math.cos(pole.a) * params.l * meter_pixels;
+    graphics.fillStyle(originColor, 1);
+    graphics.fillRect(originX-5, originY-5, 10, 10);
+    graphics.fillStyle(cartColor, 1);
+    graphics.fillRect(cartX - 25, cartY - 10, 50, 20); // Cart
+    graphics.lineStyle(4, poleColor);
+    graphics.strokeLineShape(new Phaser.Geom.Line(cartX, cartY, poleX, poleY)); // Pole
+
+    // Apply control force
+    let force = 0;
+    if (cursors.left.isDown) force = -params.force;
+    if (cursors.right.isDown) force = params.force;
+
+    // visualize force
+    graphics.lineStyle(2, controlColor);
+    graphics.strokeLineShape(new Phaser.Geom.Line(cartX, cartY, cartX + 10*force, cartY)); // Pole
+
+
+    // calculate dynamics
+    let adot = pole.adot;
+    let sin_a = Math.sin(pole.a);
+    let cos_a = Math.cos(pole.a);
+    let m = params.m;
+    let M = params.M;
+    let l = params.l;
+
+    let addot = (-m*l*sin_a*cos_a*adot**2 + (M+m)*params.g*sin_a + cos_a*force)/((M+m*sin_a**2)*l) - params.pole_fr*adot;
+    let xddot = (-m*l*sin_a*adot**2 + m*params.g*sin_a*cos_a + force)/(M+m*sin_a**2) - params.cart_fr*cart.xdot;
+
+    // update state
+    pole.a += params.dt * pole.adot;
+    pole.adot += params.dt * addot;
+    cart.x += params.dt * cart.xdot;
+    cart.xdot += params.dt * xddot;
+    if (pole.a > 1.5*Math.PI) {
+        pole.a -= 2*Math.PI;
+    }
+    else if (pole.a < -0.5*Math.PI){
+        pole.a += 2*Math.PI;
+    }
+
+    // draw state diagram
+    
+    a_sd_unstb_X = 500; // 0
+    a_sd_stb_X = 650; // pi
+    a_sd_origin_Y = 100;
+    a_sd_X = a_sd_unstb_X+((a_sd_stb_X - a_sd_unstb_X)/Math.PI) * pole.a;
+    a_sd_Y = a_sd_origin_Y + 10 * pole.adot;
+
+    x_sd_origin_X = 600;
+    x_sd_origin_Y = 300;
+    x_sd_X = x_sd_origin_X + 50*cart.x;
+    x_sd_Y = x_sd_origin_Y + 10*cart.xdot;
+
+    graphics.fillStyle(originColor, 1);
+    graphics.fillRect(a_sd_unstb_X, a_sd_origin_Y, 5, 5);
+    graphics.fillRect(a_sd_stb_X, a_sd_origin_Y, 5, 5);
+    graphics.fillStyle(poleColor, 1);
+    graphics.fillRect(a_sd_X, a_sd_Y, 5, 5);
+
+    graphics.fillStyle(originColor, 1);
+    graphics.fillRect(x_sd_origin_X, x_sd_origin_Y, 5, 5);
+    graphics.fillStyle(cartColor, 1);
+    graphics.fillRect(x_sd_X, x_sd_Y, 5, 5);
+
+
+
+
+
+
+}
 
 </script>
 <div id="main-disp"></div>
