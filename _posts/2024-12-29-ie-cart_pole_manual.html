@@ -107,6 +107,7 @@ class PhaseDiagram {
 
     draw(graphics, cartPole) {
         let phase = cartPole.getPhase();
+
         let a_ps_unstb_X = 500; // 0
         let a_ps_stb_X = 650; // pi
         let a_ps_origin_Y = 100;
@@ -139,15 +140,38 @@ class PhaseDiagram {
             }
         }
 
-
-        let x_ps_origin_X = 600;
+        let x_ps_origin_X = 575;
         let x_ps_origin_Y = 300;
-        let x_ps_X = x_ps_origin_X + 50*phase.x;
-        let x_ps_Y = x_ps_origin_Y + 10*phase.xdot;
+        // let x_ps_X = x_ps_origin_X + 50*phase.x;
+        // let x_ps_Y = x_ps_origin_Y + 10*phase.xdot;
+        let phase2XY_x = function(x, xdot) {
+            return {
+                X: x_ps_origin_X + 50*x,
+                Y: x_ps_origin_Y + 10*xdot,
+            }
+        }
+        let {X: x_ps_X, Y: x_ps_Y} = phase2XY_x(phase.x, phase.xdot);
         graphics.fillStyle(this.cmap.originColor, 1);
         graphics.fillRect(x_ps_origin_X, x_ps_origin_Y, 5, 5);
         graphics.fillStyle(this.cmap.cartColor, 1);
         graphics.fillRect(x_ps_X, x_ps_Y, 5, 5);
+
+        graphics.lineStyle(1, this.cmap.cartColor);
+        for (let gx = -3; gx < 3 + 1e-3; gx += 0.5) {
+            for (let gxdot = -7; gxdot <= 7; gxdot += 2) {
+                const {X: p0x, Y: p0y} = phase2XY_x(gx, gxdot);
+                let {addot, xddot} = cartPole.getDynamics(phase.a, phase.adot, gx, gxdot);
+                let pdx_raw = gxdot * 50;
+                let pdy_raw = xddot * 10;
+                let pdx = pdx_raw / 15.0;
+                let pdy = pdy_raw / 15.0;
+                graphics.strokeLineShape(new Phaser.Geom.Line(p0x, p0y, p0x+pdx, p0y+pdy));
+            }
+        }
+
+
+
+
     }
 }
 
