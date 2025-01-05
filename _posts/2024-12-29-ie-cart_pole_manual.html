@@ -53,8 +53,10 @@ class CartPole {
         graphics.fillRect(originX-5, originY-5, 10, 10);
         graphics.fillStyle(this.cmap.cartColor, 1);
         graphics.fillRect(cartX - 25, cartY - 10, 50, 20); // Cart
-        graphics.lineStyle(4, this.cmap.poleColor);
+        graphics.lineStyle(3, this.cmap.poleColor);
         graphics.strokeLineShape(new Phaser.Geom.Line(cartX, cartY, poleX, poleY)); // Pole
+        graphics.fillStyle(this.cmap.poleColor, 1);
+        graphics.fillCircle(poleX, poleY, 7);
         graphics.lineStyle(2, this.cmap.controlColor);
         graphics.strokeLineShape(new Phaser.Geom.Line(cartX, cartY, cartX + 10*this.controlForce, cartY)); // Force
     }
@@ -137,6 +139,7 @@ class PhaseDiagram {
                 let pdx = pdx_raw / 15.0;
                 let pdy = pdy_raw / 15.0;
                 graphics.strokeLineShape(new Phaser.Geom.Line(p0x, p0y, p0x+pdx, p0y+pdy));
+                graphics.fillCircle(p0x+pdx, p0y+pdy, 1.5);
             }
         }
 
@@ -166,6 +169,7 @@ class PhaseDiagram {
                 let pdx = pdx_raw / 15.0;
                 let pdy = pdy_raw / 15.0;
                 graphics.strokeLineShape(new Phaser.Geom.Line(p0x, p0y, p0x+pdx, p0y+pdy));
+                graphics.fillCircle(p0x+pdx, p0y+pdy, 1.5);
             }
         }
 
