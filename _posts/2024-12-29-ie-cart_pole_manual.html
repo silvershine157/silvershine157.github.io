@@ -6,10 +6,9 @@ category: ie
 <script src="//cdn.jsdelivr.net/npm/phaser@3.16.2/dist/phaser.js"></script>
 <script>
 
-class MainScene extends Phaser.Scene {
+class CartPole {
 
     constructor() {
-        super({key: 'MainScene'});
         this.cart = {
             x: 0, // Cart position (meters)
             xdot: 0, // Cart velocity (m/s)
@@ -30,26 +29,10 @@ class MainScene extends Phaser.Scene {
         };
     }
 
-    create() {
-        this.graphics = this.add.graphics();
-        this.cursors = this.input.keyboard.createCursorKeys();
-    }
-    
-    update() {
+    update(graphics, cursors, cmap) {
         let cart = this.cart;
         let pole = this.pole;
         let params = this.params;
-        let graphics = this.graphics;
-        let cursors = this.cursors;
-
-        // Clear the graphics
-        graphics.clear();
-
-        // Draw the cart and pole
-        const cartColor = 0x3f72c4;
-        const poleColor = 0xe0ca58;
-        const originColor = 0xeeeeee;
-        const controlColor = 0xe0585c;
 
         const meter_pixels = 100;
         const originX = 250;
@@ -58,11 +41,11 @@ class MainScene extends Phaser.Scene {
         const cartY = originY;
         const poleX = cartX - Math.sin(pole.a) * params.l * meter_pixels;
         const poleY = cartY - Math.cos(pole.a) * params.l * meter_pixels;
-        graphics.fillStyle(originColor, 1);
+        graphics.fillStyle(cmap.originColor, 1);
         graphics.fillRect(originX-5, originY-5, 10, 10);
-        graphics.fillStyle(cartColor, 1);
+        graphics.fillStyle(cmap.cartColor, 1);
         graphics.fillRect(cartX - 25, cartY - 10, 50, 20); // Cart
-        graphics.lineStyle(4, poleColor);
+        graphics.lineStyle(4, cmap.poleColor);
         graphics.strokeLineShape(new Phaser.Geom.Line(cartX, cartY, poleX, poleY)); // Pole
 
         // Apply control force
@@ -71,7 +54,7 @@ class MainScene extends Phaser.Scene {
         if (cursors.right.isDown) force = params.force;
 
         // visualize force
-        graphics.lineStyle(2, controlColor);
+        graphics.lineStyle(2, cmap.controlColor);
         graphics.strokeLineShape(new Phaser.Geom.Line(cartX, cartY, cartX + 10*force, cartY)); // Pole
 
         // calculate dynamics
@@ -96,6 +79,46 @@ class MainScene extends Phaser.Scene {
         else if (pole.a < -0.5*Math.PI){
             pole.a += 2*Math.PI;
         }
+    }
+
+}
+
+
+class MainScene extends Phaser.Scene {
+
+    constructor() {
+        super({key: 'MainScene'});
+        this.cartpole = new CartPole();
+        this.cmap = {
+            cartColor: 0x3f72c4,
+            poleColor: 0xe0ca58,
+            originColor: 0xeeeeee,
+            controlColor: 0xe0585c,
+        }
+    }
+
+    create() {
+        this.graphics = this.add.graphics();
+        this.cursors = this.input.keyboard.createCursorKeys();
+    }
+    
+    update() {
+
+        this.graphics.clear();
+
+        this.cartpole.update(this.graphics, this.cursors, this.cmap);
+
+        let cart = this.cartpole.cart;
+        let pole = this.cartpole.pole;
+        let params = this.cartpole.params;
+        let graphics = this.graphics;
+        let cursors = this.cursors;
+
+        // Draw the cart and pole
+        const cartColor = 0x3f72c4;
+        const poleColor = 0xe0ca58;
+        const originColor = 0xeeeeee;
+        const controlColor = 0xe0585c;
 
         // visualize phase space
         let a_ps_unstb_X = 500; // 0
