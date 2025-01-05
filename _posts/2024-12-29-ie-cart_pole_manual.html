@@ -6,6 +6,7 @@ category: ie
 <script src="//cdn.jsdelivr.net/npm/phaser@3.16.2/dist/phaser.js"></script>
 <script>
 
+
 class CartPole {
     constructor(cmap) {
         this.cmap = cmap;
@@ -58,25 +59,28 @@ class CartPole {
         graphics.strokeLineShape(new Phaser.Geom.Line(cartX, cartY, cartX + 10*this.controlForce, cartY)); // Force
     }
 
-    updatePhase() {
-        let cart = this.cart;
-        let pole = this.pole;
+    getDynamics(a, adot, x, xdot) {
         let params = this.params;
-
-        let adot = pole.adot;
-        let sin_a = Math.sin(pole.a);
-        let cos_a = Math.cos(pole.a);
         let m = params.m;
         let M = params.M;
         let l = params.l;
+        let sin_a = Math.sin(a);
+        let cos_a = Math.cos(a);
+        return {
+            addot: (-m*l*sin_a*cos_a*adot**2 + (M+m)*params.g*sin_a + cos_a*this.controlForce)/((M+m*sin_a**2)*l) - params.pole_fr*adot,
+            xddot: (-m*l*sin_a*adot**2 + m*params.g*sin_a*cos_a + this.controlForce)/(M+m*sin_a**2) - params.cart_fr*xdot,
+        }
+    }
 
-        let addot = (-m*l*sin_a*cos_a*adot**2 + (M+m)*params.g*sin_a + cos_a*this.controlForce)/((M+m*sin_a**2)*l) - params.pole_fr*adot;
-        let xddot = (-m*l*sin_a*adot**2 + m*params.g*sin_a*cos_a + this.controlForce)/(M+m*sin_a**2) - params.cart_fr*cart.xdot;
-
-        pole.a += params.dt * pole.adot;
-        pole.adot += params.dt * addot;
-        cart.x += params.dt * cart.xdot;
-        cart.xdot += params.dt * xddot;
+    updatePhase() {
+        let cart = this.cart;
+        let pole = this.pole;
+        let dt = this.params.dt;
+        let {addot, xddot} = this.getDynamics(pole.a, pole.adot, cart.x, cart.xdot);
+        pole.a += dt * pole.adot;
+        pole.adot += dt * addot;
+        cart.x += dt * cart.xdot;
+        cart.xdot += dt * xddot;
         if (pole.a > 1.5*Math.PI) {
             pole.a -= 2*Math.PI;
         }
@@ -101,24 +105,45 @@ class PhaseDiagram {
         this.cmap = cmap;
     }
 
-    draw(graphics, phase) {
+    draw(graphics, cartPole) {
+        let phase = cartPole.getPhase();
         let a_ps_unstb_X = 500; // 0
         let a_ps_stb_X = 650; // pi
         let a_ps_origin_Y = 100;
-        let a_ps_X = a_ps_unstb_X+((a_ps_stb_X - a_ps_unstb_X)/Math.PI) * phase.a;
-        let a_ps_Y = a_ps_origin_Y + 10 * phase.adot;
-
-        let x_ps_origin_X = 600;
-        let x_ps_origin_Y = 300;
-        let x_ps_X = x_ps_origin_X + 50*phase.x;
-        let x_ps_Y = x_ps_origin_Y + 10*phase.xdot;
-
+        let a_ps_Y_scale = 10;
+        let phase2XY_a = function(a, adot) {
+            return {
+                X: a_ps_unstb_X+((a_ps_stb_X - a_ps_unstb_X)/Math.PI)*a,
+                Y: a_ps_origin_Y + a_ps_Y_scale*adot
+            }
+        }
+        let a_XY = phase2XY_a(phase.a, phase.adot);
+        let a_ps_X = a_XY.X;
+        let a_ps_Y = a_XY.Y;
         graphics.fillStyle(this.cmap.originColor, 1);
         graphics.fillRect(a_ps_unstb_X, a_ps_origin_Y, 5, 5);
         graphics.fillRect(a_ps_stb_X, a_ps_origin_Y, 5, 5);
         graphics.fillStyle(this.cmap.poleColor, 1);
         graphics.fillRect(a_ps_X, a_ps_Y, 5, 5);
 
+        graphics.lineStyle(1, this.cmap.poleColor);
+        for (let ga = -0.5*Math.PI; ga < 1.5*Math.PI + 1e-3; ga += 0.125*Math.PI) {
+            for (let gadot = -7; gadot <= 7; gadot += 2) {
+                const {X: p0x, Y: p0y} = phase2XY_a(ga, gadot);
+                let {addot, xddot} = cartPole.getDynamics(ga, gadot, phase.x, phase.xdot);
+                let pdx_raw = gadot * ((a_ps_stb_X - a_ps_unstb_X)/Math.PI);
+                let pdy_raw = a_ps_Y_scale * addot;
+                let pdx = pdx_raw / 15.0;
+                let pdy = pdy_raw / 15.0;
+                graphics.strokeLineShape(new Phaser.Geom.Line(p0x, p0y, p0x+pdx, p0y+pdy));
+            }
+        }
+
+
+        let x_ps_origin_X = 600;
+        let x_ps_origin_Y = 300;
+        let x_ps_X = x_ps_origin_X + 50*phase.x;
+        let x_ps_Y = x_ps_origin_Y + 10*phase.xdot;
         graphics.fillStyle(this.cmap.originColor, 1);
         graphics.fillRect(x_ps_origin_X, x_ps_origin_Y, 5, 5);
         graphics.fillStyle(this.cmap.cartColor, 1);
@@ -149,7 +174,7 @@ class MainScene extends Phaser.Scene {
         this.cartPole.update(this.cursors);
         this.graphics.clear();
         this.cartPole.draw(this.graphics);
-        this.phaseDiagram.draw(this.graphics, this.cartPole.getPhase());
+        this.phaseDiagram.draw(this.graphics, this.cartPole);
     }
 }
 
