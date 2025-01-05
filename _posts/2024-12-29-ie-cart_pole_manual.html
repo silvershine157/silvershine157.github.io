@@ -7,7 +7,6 @@ category: ie
 <script>
 
 class CartPole {
-
     constructor() {
         this.cart = {
             x: 0, // Cart position (meters)
@@ -81,14 +80,49 @@ class CartPole {
         }
     }
 
+    getPhase() {
+        return {
+            x: this.cart.x,
+            xdot: this.cart.xdot,
+            a: this.pole.a,
+            adot: this.pole.adot
+        }
+    }
+}
+
+
+class PhaseDiagram {
+    update(graphics, phase, cmap) {
+        let a_ps_unstb_X = 500; // 0
+        let a_ps_stb_X = 650; // pi
+        let a_ps_origin_Y = 100;
+        let a_ps_X = a_ps_unstb_X+((a_ps_stb_X - a_ps_unstb_X)/Math.PI) * phase.a;
+        let a_ps_Y = a_ps_origin_Y + 10 * phase.adot;
+
+        let x_ps_origin_X = 600;
+        let x_ps_origin_Y = 300;
+        let x_ps_X = x_ps_origin_X + 50*phase.x;
+        let x_ps_Y = x_ps_origin_Y + 10*phase.xdot;
+
+        graphics.fillStyle(cmap.originColor, 1);
+        graphics.fillRect(a_ps_unstb_X, a_ps_origin_Y, 5, 5);
+        graphics.fillRect(a_ps_stb_X, a_ps_origin_Y, 5, 5);
+        graphics.fillStyle(cmap.poleColor, 1);
+        graphics.fillRect(a_ps_X, a_ps_Y, 5, 5);
+
+        graphics.fillStyle(cmap.originColor, 1);
+        graphics.fillRect(x_ps_origin_X, x_ps_origin_Y, 5, 5);
+        graphics.fillStyle(cmap.cartColor, 1);
+        graphics.fillRect(x_ps_X, x_ps_Y, 5, 5);
+    }
 }
 
 
 class MainScene extends Phaser.Scene {
-
     constructor() {
         super({key: 'MainScene'});
-        this.cartpole = new CartPole();
+        this.cartPole = new CartPole();
+        this.phaseDiagram = new PhaseDiagram();
         this.cmap = {
             cartColor: 0x3f72c4,
             poleColor: 0xe0ca58,
@@ -103,47 +137,10 @@ class MainScene extends Phaser.Scene {
     }
     
     update() {
-
         this.graphics.clear();
-
-        this.cartpole.update(this.graphics, this.cursors, this.cmap);
-
-        let cart = this.cartpole.cart;
-        let pole = this.cartpole.pole;
-        let params = this.cartpole.params;
-        let graphics = this.graphics;
-        let cursors = this.cursors;
-
-        // Draw the cart and pole
-        const cartColor = 0x3f72c4;
-        const poleColor = 0xe0ca58;
-        const originColor = 0xeeeeee;
-        const controlColor = 0xe0585c;
-
-        // visualize phase space
-        let a_ps_unstb_X = 500; // 0
-        let a_ps_stb_X = 650; // pi
-        let a_ps_origin_Y = 100;
-        let a_ps_X = a_ps_unstb_X+((a_ps_stb_X - a_ps_unstb_X)/Math.PI) * pole.a;
-        let a_ps_Y = a_ps_origin_Y + 10 * pole.adot;
-
-        let x_ps_origin_X = 600;
-        let x_ps_origin_Y = 300;
-        let x_ps_X = x_ps_origin_X + 50*cart.x;
-        let x_ps_Y = x_ps_origin_Y + 10*cart.xdot;
-
-        graphics.fillStyle(originColor, 1);
-        graphics.fillRect(a_ps_unstb_X, a_ps_origin_Y, 5, 5);
-        graphics.fillRect(a_ps_stb_X, a_ps_origin_Y, 5, 5);
-        graphics.fillStyle(poleColor, 1);
-        graphics.fillRect(a_ps_X, a_ps_Y, 5, 5);
-
-        graphics.fillStyle(originColor, 1);
-        graphics.fillRect(x_ps_origin_X, x_ps_origin_Y, 5, 5);
-        graphics.fillStyle(cartColor, 1);
-        graphics.fillRect(x_ps_X, x_ps_Y, 5, 5);
+        this.cartPole.update(this.graphics, this.cursors, this.cmap);
+        this.phaseDiagram.update(this.graphics, this.cartPole.getPhase(), this.cmap);
     }
-
 }
 
 
