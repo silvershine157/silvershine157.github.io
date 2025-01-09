@@ -3,4 +3,223 @@ layout: ie
 title: Cart-Pole Manual Control
 category: ie
 ---
-WIP
+<script src="//cdn.jsdelivr.net/npm/phaser@3.16.2/dist/phaser.js"></script>
+<script>
+
+
+class CartPole {
+    constructor(cmap) {
+        this.cmap = cmap;
+        this.cart = {
+            x: 0, // Cart position (meters)
+            xdot: 0, // Cart velocity (m/s)
+        };
+        this.pole = {
+            a: Math.PI / 6, // Pole angle (radians, 0 is upright)
+            adot: 0, // Pole angular velocity (rad/s)
+        };
+        this.params = {
+            g: 9.8, // Gravity (m/s^2)
+            l: 1.0, // Pole length (meters)
+            M: 1.0, // Mass of the cart (kg)
+            m: 0.2, // Mass of the pole (kg)
+            force: 10, // Force applied to the cart (N)
+            dt: 0.016, // Time step (seconds)
+            pole_fr: 0.3,
+            cart_fr: 0.3,
+        };
+        this.controlForce = 0.0;
+    }
+
+    update(cursors) {
+        this.controlForce = 0.0;
+        if (cursors.left.isDown) this.controlForce = -this.params.force;
+        if (cursors.right.isDown) this.controlForce = this.params.force;
+        this.updatePhase();
+    }
+
+    draw(graphics){
+        let cart = this.cart;
+        let pole = this.pole;
+        let params = this.params;
+        const meter_pixels = 100;
+        const originX = 250;
+        const originY = 250;
+        const cartX = originX + cart.x * meter_pixels;
+        const cartY = originY;
+        const poleX = cartX - Math.sin(pole.a) * params.l * meter_pixels;
+        const poleY = cartY - Math.cos(pole.a) * params.l * meter_pixels;
+        graphics.fillStyle(this.cmap.originColor, 1);
+        graphics.fillRect(originX-5, originY-5, 10, 10);
+        graphics.fillStyle(this.cmap.cartColor, 1);
+        graphics.fillRect(cartX - 25, cartY - 10, 50, 20); // Cart
+        graphics.lineStyle(3, this.cmap.poleColor);
+        graphics.strokeLineShape(new Phaser.Geom.Line(cartX, cartY, poleX, poleY)); // Pole
+        graphics.fillStyle(this.cmap.poleColor, 1);
+        graphics.fillCircle(poleX, poleY, 7);
+        graphics.lineStyle(2, this.cmap.controlColor);
+        graphics.strokeLineShape(new Phaser.Geom.Line(cartX, cartY, cartX + 10*this.controlForce, cartY)); // Force
+    }
+
+    getDynamics(a, adot, x, xdot) {
+        let params = this.params;
+        let m = params.m;
+        let M = params.M;
+        let l = params.l;
+        let sin_a = Math.sin(a);
+        let cos_a = Math.cos(a);
+        return {
+            addot: (-m*l*sin_a*cos_a*adot**2 + (M+m)*params.g*sin_a + cos_a*this.controlForce)/((M+m*sin_a**2)*l) - params.pole_fr*adot,
+            xddot: (-m*l*sin_a*adot**2 + m*params.g*sin_a*cos_a + this.controlForce)/(M+m*sin_a**2) - params.cart_fr*xdot,
+        }
+    }
+
+    updatePhase() {
+        let cart = this.cart;
+        let pole = this.pole;
+        let dt = this.params.dt;
+        let {addot, xddot} = this.getDynamics(pole.a, pole.adot, cart.x, cart.xdot);
+        pole.a += dt * pole.adot;
+        pole.adot += dt * addot;
+        cart.x += dt * cart.xdot;
+        cart.xdot += dt * xddot;
+        if (pole.a > 1.5*Math.PI) {
+            pole.a -= 2*Math.PI;
+        }
+        else if (pole.a < -0.5*Math.PI){
+            pole.a += 2*Math.PI;
+        }
+    }
+
+    getPhase() {
+        return {
+            x: this.cart.x,
+            xdot: this.cart.xdot,
+            a: this.pole.a,
+            adot: this.pole.adot
+        }
+    }
+}
+
+
+class PhaseDiagram {
+    constructor(cmap) {
+        this.cmap = cmap;
+    }
+    draw(graphics, cartPole) {
+        let phase = cartPole.getPhase();
+
+        let scaleArrow = function(pdx_raw, pdy_raw) {
+            let scaleFactor = (pdx_raw**2 + pdy_raw**2)**0.5 / 10 + 1e-3;
+            return {
+                pdx: pdx_raw / scaleFactor,
+                pdy: pdy_raw / scaleFactor,
+                alpha: Math.tanh(0.05*scaleFactor)
+            }
+        }
+
+        let a_ps_unstb_X = 500; // 0
+        let a_ps_stb_X = 650; // pi
+        let a_ps_origin_Y = 100;
+        let a_ps_Y_scale = 10;
+        let phase2XY_a = function(a, adot) {
+            return {
+                X: a_ps_unstb_X+((a_ps_stb_X - a_ps_unstb_X)/Math.PI)*a,
+                Y: a_ps_origin_Y + a_ps_Y_scale*adot
+            }
+        }
+        let a_XY = phase2XY_a(phase.a, phase.adot);
+        let a_ps_X = a_XY.X;
+        let a_ps_Y = a_XY.Y;
+        graphics.fillStyle(this.cmap.originColor, 1);
+        graphics.fillRect(a_ps_unstb_X, a_ps_origin_Y, 5, 5);
+        graphics.fillRect(a_ps_stb_X, a_ps_origin_Y, 5, 5);
+        graphics.fillStyle(this.cmap.poleColor, 1);
+        graphics.fillRect(a_ps_X, a_ps_Y, 5, 5);
+
+        for (let ga = -0.5*Math.PI; ga < 1.5*Math.PI + 1e-3; ga += 0.125*Math.PI) {
+            for (let gadot = -7; gadot <= 7; gadot += 2) {
+                const {X: p0x, Y: p0y} = phase2XY_a(ga, gadot);
+                let {addot, xddot} = cartPole.getDynamics(ga, gadot, phase.x, phase.xdot);
+                let pdx_raw = gadot * ((a_ps_stb_X - a_ps_unstb_X)/Math.PI);
+                let pdy_raw = a_ps_Y_scale * addot;
+                let {pdx, pdy, alpha} = scaleArrow(pdx_raw, pdy_raw);
+                graphics.lineStyle(1, this.cmap.poleColor, alpha);
+                graphics.strokeLineShape(new Phaser.Geom.Line(p0x, p0y, p0x+pdx, p0y+pdy));
+                graphics.fillStyle(this.cmap.poleColor, alpha);
+                graphics.fillCircle(p0x+pdx, p0y+pdy, 1.5);
+            }
+        }
+
+        let x_ps_origin_X = 575;
+        let x_ps_origin_Y = 300;
+        let phase2XY_x = function(x, xdot) {
+            return {
+                X: x_ps_origin_X + 50*x,
+                Y: x_ps_origin_Y + 10*xdot,
+            }
+        }
+        let {X: x_ps_X, Y: x_ps_Y} = phase2XY_x(phase.x, phase.xdot);
+        graphics.fillStyle(this.cmap.originColor, 1);
+        graphics.fillRect(x_ps_origin_X, x_ps_origin_Y, 5, 5);
+        graphics.fillStyle(this.cmap.cartColor, 1);
+        graphics.fillRect(x_ps_X, x_ps_Y, 5, 5);
+
+        graphics.lineStyle(1, this.cmap.cartColor);
+        for (let gx = -3; gx < 3 + 1e-3; gx += 0.5) {
+            for (let gxdot = -7; gxdot <= 7; gxdot += 2) {
+                const {X: p0x, Y: p0y} = phase2XY_x(gx, gxdot);
+                let {addot, xddot} = cartPole.getDynamics(phase.a, phase.adot, gx, gxdot);
+                let pdx_raw = gxdot * 50;
+                let pdy_raw = xddot * 10;
+                let {pdx, pdy, alpha} = scaleArrow(pdx_raw, pdy_raw);
+                graphics.lineStyle(1, this.cmap.cartColor, alpha);
+                graphics.strokeLineShape(new Phaser.Geom.Line(p0x, p0y, p0x+pdx, p0y+pdy));
+                graphics.fillStyle(this.cmap.cartColor, alpha);
+                graphics.fillCircle(p0x+pdx, p0y+pdy, 1.5);
+            }
+        }
+    }
+}
+
+
+class MainScene extends Phaser.Scene {
+    constructor() {
+        super({key: 'MainScene'});
+        const cmap = {
+            cartColor: 0x3f72c4,
+            poleColor: 0xe0ca58,
+            originColor: 0xeeeeee,
+            controlColor: 0xe0585c,
+        };
+        this.cartPole = new CartPole(cmap);
+        this.phaseDiagram = new PhaseDiagram(cmap);
+    }
+
+    create() {
+        this.graphics = this.add.graphics();
+        this.cursors = this.input.keyboard.createCursorKeys();
+    }
+    
+    update() {
+        this.cartPole.update(this.cursors);
+        this.graphics.clear();
+        this.cartPole.draw(this.graphics);
+        this.phaseDiagram.draw(this.graphics, this.cartPole);
+    }
+}
+
+
+const config = {
+    parent: "main-disp",
+    type: Phaser.AUTO,
+    width: 800,
+    height: 400,
+    backgroundColor: 0x333333,
+    scene: MainScene
+};
+
+const game = new Phaser.Game(config);
+
+</script>
+<div id="main-disp"></div>
